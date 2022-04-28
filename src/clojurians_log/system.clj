@@ -20,6 +20,8 @@
     {:clojurians-log.http/server
      {:port (profile {:prod 8919 :dev 8000})
       :ds (ig/ref :clojurians-log.db.core/datasource)}
+     :clojurians-log.sentry/alerts
+     {:sentry-dsn (or (secret :sentry-dsn) "1234")}
      :clojurians-log.db.core/datasource
      {:dbtype "postgres"
       :user (profile {:prod (secret :db :user) :dev "myuser"})
