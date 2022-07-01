@@ -1,13 +1,14 @@
 (ns clojurians-log.db.bulk-import
-  (:require [clojure.java.io :as io]
-            [clojurians-log.db.import :as import]
-            [clojurians-log.utils :as utils]
-            [clojurians-log.slack.api :as clj-slack]
-            [clojurians-log.system :as system]
-            [honey.sql :as sql]
-            [integrant.repl.state :as ig-state]
-            [next.jdbc :as jdbc]
-            [clojurians-log.db.queries :as queries]))
+  (:require
+   [clojure.java.io :as io]
+   [clojurians-log.db.import :as import]
+   [clojurians-log.db.queries :as queries]
+   [clojurians-log.slack.api :as clj-slack]
+   [clojurians-log.system :as system]
+   [clojurians-log.utils :as utils]
+   [honey.sql :as sql]
+   [integrant.repl.state :as ig-state]
+   [next.jdbc :as jdbc]))
 
 (def ds (:clojurians-log.db.core/datasource ig-state/system))
 
@@ -42,6 +43,7 @@
     (string? path-or-data) (channels ds (utils/read-json-from-file (io/file path-or-data "users.json")))
     (seq path-or-data)
     (let [slack-data path-or-data
+          ;; TODO: use member->tx here
           data (into []
                      (comp
                       (map #(utils/select-keys-nested-as
@@ -133,7 +135,7 @@
                          data)
               message-vals (remove nil? (mapv #(import/event->tx % cache) data))
               message-query {:insert-into [:message]
-                             :values message-vals
+                             :values (map :values message-vals)
                              ;;:on-conflict []
                              :on-conflict {:on-constraint :message_channel_id_ts_key}
                              :do-update-set {:fields [:text :channel-id]}
@@ -146,7 +148,7 @@
                   cache (assoc cache :message-ts->db-id (into {}
                                                               (map (juxt :ts :id))
                                                               inserted-messages))
-                  reaction-vals (remove nil? (mapcat #(import/reaction->tx % cache)
+                  reaction-vals (remove nil? (mapcat #(import/reactions->tx % cache)
                                                      (filter :reactions data)))
                   _ (println "reaction vals " reaction-vals)
                   reaction-query {:insert-into [:reaction]
@@ -159,24 +161,8 @@
                      (/ (double (- (. System (nanoTime)) start#)) 1000000000.0)
                      channel))))
 
-(defn chan-cache [ds]
-  (let [sqlmap {:select [:id :name]
-                :from [:channel]}
-        data (jdbc/execute! ds (sql/format sqlmap))]
-    (into {}
-          (map (juxt :name :id))
-          data)))
-
-(defn member-cache [ds]
-  (let [sqlmap {:select [:id :slack-id]
-                :from [:member]}
-        data (jdbc/execute! ds (sql/format sqlmap))]
-    (into {}
-          (map (juxt :slack-id :id))
-          data)))
-
 (defn log-bot-channels []
-  (let [slack-conn (clj-slack/conn (:slack-api-token (system/secrets)))
+  (let [slack-conn (clj-slack/conn (get-in (system/secrets) [:slack-socket :bot-token]))
         bot-chans (clj-slack/get-users-conversations
                    slack-conn
                    {:user (:slack-bot-user (system/secrets))})]
@@ -187,7 +173,7 @@
   If path is nil, imports from the slack api."
   [& [{:keys [path]
        :or {path nil}}]]
-  (let [slack-conn (clj-slack/conn (:slack-api-token (system/secrets)))
+  (let [slack-conn (clj-slack/conn (get-in (system/secrets) [:slack-socket :bot-token]))
         chan-file (io/file path "channels.json")
         members-file (io/file path "users.json")
         ds (queries/repl-ds)
@@ -212,13 +198,9 @@
     (println stats)
     stats))
 
-(defn- get-cache []
-  {:chan-name->id (chan-cache ds)
-   :member-slack->db-id (member-cache ds)})
-
 (defn messages-all [path]
   (for [chan (queries/all-channels (queries/repl-ds))]
-    (messages ds path (:name chan) (get-cache))))
+    (messages ds path (:name chan) (queries/get-cache ds))))
 
 (comment
   ;; eval buffer then eval this do form to populate db
@@ -227,17 +209,19 @@
     (println (sql/format sqlmap))
     (jdbc/execute! ds (sql/format sqlmap)))
 
-  (def slack-conn (clj-slack/conn (:slack-api-token (system/secrets))))
+  (def slack-conn (clj-slack/conn (get-in (system/secrets) [:slack-socket :bot-token])))
+  slack-conn
 
   (channel-member-import)
+  (log-bot-channels)
 
   (def path "../clojurians-log-data/sample_data")
 
-  (messages ds path "announcements" (get-cache))
+  (messages ds path "announcements" (queries/get-cache ds))
 
   (in-ns 'clojurians-log.db.bulk-import)
   (use 'clojurians-log.db.bulk-import)
-  (messages ds "/data/2021-10-31" "announcements" (get-cache))
+  (messages ds "/data/2021-10-31" "announcements" (queries/get-cache ds))
 
   (messages-all path)
 

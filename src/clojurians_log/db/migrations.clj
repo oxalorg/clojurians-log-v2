@@ -21,3 +21,10 @@
 (defn down [config id]
   "bring down migrations matching the ids"
   (migratus/down config 20111206154000))
+
+
+(comment
+  (def mc (user/migrations-config))
+  mc
+  (migrate mc)
+  )

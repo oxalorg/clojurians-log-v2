@@ -103,7 +103,7 @@
              :text "2 become 3"},
    :subtype "message_changed"})
 
-(def message-deleted-event
+(def message-deleted-tombstone-event
   {:channel "C020GQ8LW85",
    :channel-type "channel",
    :event-ts "1646720906.001300",
@@ -200,3 +200,89 @@
              :name-normalized "testnew222"},
    :event-ts "1646727936.004300",
    :type "channel_rename"})
+
+(def channel-joined-event
+  {:channel "C020GQ8LW85",
+   :channel-type "channel",
+   :event-ts "1652772711.926349",
+   :inviter "U01FVSUGVN3",
+   :subtype "channel_join",
+   :team nil,
+   :text "<@U01SNLN6L7P> has joined the channel",
+   :ts "1652772711.926349",
+   :type "message",
+   :user "U01SNLN6L7P"})
+
+(def team-joined-event
+  {:user
+   {:is_email_confirmed true,
+    :tz_label "Eastern Daylight Time",
+    :deleted false,
+    :is_bot false,
+    :color "d1707d",
+    :real_name "Test User 123",
+    :presence "away",
+    :updated 1633394736,
+    :name "test-user-123",
+    :tz "America/New_York",
+    :is_primary_owner false,
+    :is_restricted false,
+    :who_can_share_contact_card "EVERYONE",
+    :is_app_user false,
+    :is_admin false,
+    :is_ultra_restricted false,
+    :id "U02GQ1K40JG",
+    :team_id "TASMB716H",
+    :is_owner false,
+    :profile
+    {:image_512 "",
+     :status_text "",
+     :first_name "Test",
+     :real_name_normalized "Test User 123",
+     :image_48 "",
+     :image_192 "",
+     :status_expiration 0,
+     :real_name "Test User 123",
+     :phone "",
+     :fields nil,
+     :image_72 "",
+     :image_24 "",
+     :skype "",
+     :avatar_hash "g1b3ca723bd9",
+     :title "",
+     :status_emoji_url "",
+     :team "TASMB716H",
+     :image_32 "",
+     :last_name "User",
+     :status_emoji "",
+     :display_name "TestUser123",
+     :display_name_normalized "TestUser123",
+     :status_text_canonical ""},
+    :tz_offset -14400},
+   :cache_ts 1633394736,
+   :event_ts "1633394737.237900",
+   :type "team_join"})
+
+(def some-event-types
+  "TODO: update if you find more"
+  ["bot_added"
+   "channel_joined"
+   "commands_changed"
+   "dnd_updated_user"
+   "emoji_changed"
+   "file_change"
+   "file_deleted"
+   "file_public"
+   "file_shared"
+   "file_unshared"
+   "goodbye"
+   "group_left"
+   "member_joined_channel"
+   "member_left_channel"
+   "message"
+   "pin_added"
+   "pin_removed"
+   "reaction_added"
+   "reaction_removed"
+   "team_join"
+   "user_change"])

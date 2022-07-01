@@ -133,6 +133,9 @@ user> (def mc (migrations-config))
 #'user/mc
 user> (require '[clojurians-log.db.migrations :as m])
 nil
+;; now create first-time migrations or run unapplied migrations
+user> (m/migrate mc)
+;; create new migration sql files
 user> (m/create mc "add-name-to-user-table")
 ```
 

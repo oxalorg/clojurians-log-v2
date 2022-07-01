@@ -1,9 +1,9 @@
 (ns clojurians-log.db.queries
-  (:require [next.jdbc :as jdbc]
-            [next.jdbc.result-set :as rs]
-            [next.jdbc.optional :as jdbc-opts]
-            [integrant.repl.state :as ig-state]
-            [honey.sql :as sql]))
+  (:require
+   [honey.sql :as sql]
+   [integrant.repl.state :as ig-state]
+   [next.jdbc :as jdbc]
+   [next.jdbc.result-set :as rs]))
 
 (defn repl-ds
   "only for repl usage, don't use this directly"
@@ -18,10 +18,22 @@
         data (jdbc/execute! ds query {:builder-fn rs/as-kebab-maps})]
     data))
 
+(defn single-message [ds channel-id ts]
+  (let [sqlmap {:select [:message.*]
+                :from [:message]
+                :limit 1
+                :where [:and
+                        [:= :channel-id channel-id]
+                        [:= :ts ts]]}
+        query (sql/format sqlmap)
+        data (jdbc/execute! ds query {:builder-fn rs/as-kebab-maps})]
+    (first data)))
+
 (defn messages-by-channel-date [ds channel-id date]
   (let [sqlmap {:select [:message.* :member.*]
                 :from [:message]
                 :where [:and
+                        [:is :parent nil]
                         [:= :message.channel-id channel-id]
                         [:= [[:cast :message.created-at :DATE]] [:cast date :DATE]]]
                 ;; TODO: should sort based on ts instead of id
@@ -107,8 +119,39 @@
         data (jdbc/execute! ds query {:builder-fn rs/as-kebab-maps})]
     data))
 
+(defn chan-cache [ds]
+  (let [sqlmap {:select [:id :name]
+                :from [:channel]}
+        data (jdbc/execute! ds (sql/format sqlmap))]
+    (into {}
+          (map (juxt :name :id))
+          data)))
+
+(defn chan-slack-id->id-cache [ds]
+  (let [sqlmap {:select [:id :slack-id]
+                :from [:channel]}
+        data (jdbc/execute! ds (sql/format sqlmap))]
+    (into {}
+          (map (juxt :slack-id :id))
+          data)))
+
+(defn member-cache [ds]
+  (let [sqlmap {:select [:id :slack-id]
+                :from [:member]}
+        data (jdbc/execute! ds (sql/format sqlmap))]
+    (into {}
+          (map (juxt :slack-id :id))
+          data)))
+
+(defn get-cache [ds]
+  {:chan-name->id (chan-cache ds)
+   :chan-slack-id->id (chan-slack-id->id-cache ds)
+   :member-slack->db-id (member-cache ds)})
+
 (comment
   (def ds (:clojurians-log.db.core/datasource ig-state/system))
+
+  (single-message ds 2 "1652821554.591519")
 
   (replies-for-messages ds 79 [619])
 
